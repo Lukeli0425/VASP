@@ -1,0 +1,5 @@
+2.0 (2021-11-30) 更新有误的task1、task2 ground-true文件。
+3.0 (2021-12-13) task3指标更新为尺度无关的SISDR，其中更新文件有test.py(main中task3部分)，大作业文档(更新task3评分标准)
+             utils.py(删除原calc_SDR,新增calc_SISDR), requirements.txt(添加nussl库依赖)，删除metrics.py（换用nussl库支持指标计算）
+             由于添加nussl支持指标计算，需要安装对应库（如pip install nussl）
+3.1 (2021-12-14) task3指标加权系数更新，只更新utils.py中的calc_SISDR函数

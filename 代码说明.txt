@@ -1,0 +1,21 @@
+# 大作业代码说明
+
+- requirements.txt: 依赖库，如添加额外依赖，请添加在此文件中
+- test.py: 主要的测试代码，需要同学补充完善
+- utils.py: 一些文件读写与测试代码函数，被test.py调用
+- metrics.py: 包含计算SDR指标的函数。
+
+
+如使用conda,可以执行以下代码初始化环境：
+
+新建一个名为vasp (visual-audio signal processing) 的 python 3.6的环境 (名字可任取)
+conda create -n vasp python=3.6
+
+启动该环境
+conda activate vasp   
+
+安装必要的依赖库（如numpy,ffmpeg-python等，保存在requirements.txt中）
+pip install -r requirements.txt
+
+执行测试代码
+python test.py
