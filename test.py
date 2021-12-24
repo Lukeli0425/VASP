@@ -7,7 +7,6 @@ import face_demo,voice_demo
 import face_recognition,torch,torchaudio,librosa
 from resemblyzer import preprocess_wav, VoiceEncoder
 from speechbrain.pretrained import SepformerSeparation as separator
-# from speechbrain.pretrained import SpectralMaskEnhancement
 
 def test_task1(video_path):
     """测试1,使用face_recognition"""
@@ -52,15 +51,14 @@ def test_task2(wav_path):
         # audio_trace = utils.read_audio(os.path.join(wav_path,file_name),sr=44100)
         wav_test = preprocess_wav(os.path.join(wav_path,file_name))
         embed_test = encoder.embed_utterance(wav_test)
-        embed_test = embed_test/np.linalg.norm(embed_test, ord=2, axis=None, keepdims=False)
         ## 做一些处理
         # print('audio_trace have shape of:',audio_trace.shape,'and sampling rate of: 44100')
         prediction = np.zeros(20)
         for i in range(0,20,1):
-            prediction[i] = embed_test @ embed_average[i]
+            prediction[i] = np.sqrt(np.sum((embed_test - embed_average[i])**2))
         ## 返回一个ID
-        answer = np.argmax(prediction) + 1
-        result_dict[file_name]=utils.ID_dict[answer]
+        answer = np.argmin(prediction) + 1
+        result_dict[file_name] = utils.ID_dict[answer]
         print(file_name + " " + str(answer));print(prediction)
 
     return result_dict
@@ -68,9 +66,8 @@ def test_task2(wav_path):
 def test_task3(video_path,result_path):
     """测试3,使用speechbrain（https://huggingface.co/speechbrain/sepformer-wsj03mix）"""
     sep_model = separator.from_hparams(source="speechbrain/sepformer-wsj03mix", savedir='pretrained_models/sepformer-wsj03mix')
-    known_voices, embed_average = voice_demo.read_voices("./train/",sr=8000)
+    known_voices, embed_average = voice_demo.read_voices("./train/",sr=44100)
     known_faces = face_demo.read_faces('./train/')
-
     encoder = VoiceEncoder()
 
     if os.path.isdir(result_path):
@@ -83,12 +80,10 @@ def test_task3(video_path,result_path):
             continue
         ## 读MP4中的图像和音频数据，例如：
         idx = file_name[-7:-4]  # 提取出序号：001, 002, 003.....
-
         video_frames,video_fps= utils.read_video(os.path.join(video_path, file_name))
         # mixed_wav = utils.read_audio(os.path.join(video_path,file_name),sr=8000)
         mixed_wav,_ = librosa.load(os.path.join(video_path,file_name),sr=8000)
         sf.write(os.path.join(video_path,file_name[0:-4]+'.wav'),mixed_wav,8000)
-
         ## 做一些处理
         # print('video_frames have shape of:',video_frames.shape, 'and fps of:',video_fps)
         # print('audio_trace have shape of:',audio_trace.shape,'and sampling rate of: 44100')
@@ -113,29 +108,32 @@ def test_task3(video_path,result_path):
             ID.append(np.argmax(prediction) + 1)
         print(file_name + " " + str(ID))
 
-        audio_out = []
         est_sources = sep_model.separate_file(path=os.path.join(video_path,file_name[0:-4]+'.wav'),savedir='./temp/') 
-        audio_out.append(est_sources[:,:,0])
-        audio_out.append(est_sources[:,:,1])
-        audio_out.append(est_sources[:,:,2])
-
-        state = [False,False,False]
-        prediction = np.zeros([3,3])
+        audio_out = [est_sources[:,:,0],est_sources[:,:,1],est_sources[:,:,2]]
+        torchaudio.save(os.path.join(result_path,idx+'_left.wav'), est_sources[:,:,0].detach().cpu(), 8000)
+        torchaudio.save(os.path.join(result_path,idx+'_middle.wav'), est_sources[:,:,1].detach().cpu(), 8000)
+        torchaudio.save(os.path.join(result_path,idx+'_right.wav'), est_sources[:,:,2].detach().cpu(), 8000)
+        wav0 = preprocess_wav(os.path.join(result_path,idx+'_left.wav'))
+        wav1 = preprocess_wav(os.path.join(result_path,idx+'_middle.wav'))
+        wav2 = preprocess_wav(os.path.join(result_path,idx+'_right.wav'))
+        audio_temp = [wav0,wav1,wav2]
+        
+        prediction = np.zeros([3,3]) # 音频d-vector距离矩阵
         ans = [-1,-1,-1]
         for j in [0,1,2]:
             for i in [0,1,2]:
-                embed_test = encoder.embed_utterance(np.array(audio_out[j][0,:]))
+                embed_test = encoder.embed_utterance(np.array(audio_temp[j]))
                 prediction[j,i] = np.sqrt(np.sum((embed_test - embed_average[ID[i]-1])**2))
-        print(prediction)
-        for i in [0,1,2]:
-            max = np.argmin(prediction)
-            audio_max = int(max/3)
-            id_max = max - 3*audio_max
-            ans[id_max] = audio_max
-            prediction[:,id_max] = 9
-            prediction[audio_max,:] = 9
+        # print(prediction)
+        for i in [0,1,2]: # 利用距离矩阵预测音视频的对应关系
+            min = np.argmin(prediction)
+            audio_min = int(min/3)
+            id_min = min - 3 * audio_min
+            ans[id_min] = audio_min
+            prediction[:,id_min] = 10
+            prediction[audio_min,:] = 10
         
-        print(ans)
+        # print(ans)
         torchaudio.save(os.path.join(result_path,idx+'_left.wav'), audio_out[ans[0]].detach().cpu(), 8000)
         torchaudio.save(os.path.join(result_path,idx+'_middle.wav'), audio_out[ans[1]].detach().cpu(), 8000)
         torchaudio.save(os.path.join(result_path,idx+'_right.wav'), audio_out[ans[2]].detach().cpu(), 8000)
@@ -143,11 +141,11 @@ def test_task3(video_path,result_path):
 
 if __name__=='__main__':
     # testing task1
-    with open('./test_offline/task1_gt.json','r') as f:
-        task1_gt = json.load(f)
-    task1_pred = test_task1('./test_offline/task1')
-    task1_acc = utils.calc_accuracy(task1_gt,task1_pred)
-    print('accuracy for task1 is:',task1_acc)   
+    # with open('./test_offline/task1_gt.json','r') as f:
+    #     task1_gt = json.load(f)
+    # task1_pred = test_task1('./test_offline/task1')
+    # task1_acc = utils.calc_accuracy(task1_gt,task1_pred)
+    # print('accuracy for task1 is:',task1_acc)   
 
     # ## testing task2
     # with open('./test_offline/task2_gt.json','r') as f:
@@ -157,9 +155,9 @@ if __name__=='__main__':
     # print('accuracy for task2 is:',task2_acc)   
 
     # # ## testing task3
-    # test_task3('./test_offline/task3','./test_offline/task3_estimate')
-    # task3_SISDR_blind = utils.calc_SISDR('./test_offline/task3_gt','./test_offline/task3_estimate',permutaion=True)  # 盲分离
-    # print('strength-averaged SISDR_blind for task3 is:',task3_SISDR_blind)
-    # task3_SISDR_match = utils.calc_SISDR('./test_offline/task3_gt','./test_offline/task3_estimate',permutaion=False) # 定位分离
-    # print('strength-averaged SISDR_match for task3 is: ',task3_SISDR_match)
+    test_task3('./test_offline/task3','./test_offline/task3_estimate')
+    task3_SISDR_blind = utils.calc_SISDR('./test_offline/task3_gt','./test_offline/task3_estimate',permutaion=True)  # 盲分离
+    print('strength-averaged SISDR_blind for task3 is:',task3_SISDR_blind)
+    task3_SISDR_match = utils.calc_SISDR('./test_offline/task3_gt','./test_offline/task3_estimate',permutaion=False) # 定位分离
+    print('strength-averaged SISDR_match for task3 is: ',task3_SISDR_match)
 

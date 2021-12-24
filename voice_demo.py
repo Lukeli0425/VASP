@@ -17,8 +17,7 @@ def read_voices(data_path, sr=44100):
         for file in files:
             if not file[-4:] == '.mp4':
                 continue
-            # wav = preprocess_wav(path + file) # dtype = float32
-            wav,_ = librosa.load(path + file,sr=sr)
+            wav = preprocess_wav(path + file) # dtype = float32
             embed = encoder.embed_utterance(np.array(wav))
             if flag:
                 average = embed
