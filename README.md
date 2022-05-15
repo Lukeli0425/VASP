@@ -1,6 +1,6 @@
 # Video-Audio Signal Processing
 
-This is my implemention of the course project for **_Introduction to Auditory-visual Information System_**. I built three algorithms that solves the the following problems respectively:
+This is my implemention of the course project for **_Introduction to Auditory-visual Information System_**. I built three algorithms that solve the following problems respectively:
 
 1. Recognize faces from videos clips.
 2. Recongizes voices from audios.
