@@ -11,7 +11,7 @@ This repository contains three algorithms that solve the following problems resp
 
 This project is implemented in Python with the following packages: [Face Recognition](https://github.com/ageitgey/face_recognition), [Resemblyzer](https://github.com/resemble-ai/Resemblyzer), [Speechbrain](https://github.com/speechbrain/speechbrain).
 
-# Run the code
+## Run the code
 Clone this project:
 ```zsh
 git clone https://github.com/Lukeli0425/VASP.git
